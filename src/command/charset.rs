@@ -1,6 +1,6 @@
 extern crate serde;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Possible character sets
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -40,7 +40,7 @@ pub enum Charset {
     /// Vietnam
     Vietnam,
     /// Arabia
-    Arabia
+    Arabia,
 }
 
 impl Charset {
@@ -64,7 +64,7 @@ impl Charset {
             Charset::SloveniaCroatia => vec![0x0e],
             Charset::China => vec![0x0f],
             Charset::Vietnam => vec![0x10],
-            Charset::Arabia => vec![0x11]
+            Charset::Arabia => vec![0x11],
         }
     }
 }

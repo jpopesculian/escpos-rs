@@ -1,5 +1,5 @@
-use super::{PrinterProfile};
-use crate::{PrinterConnectionData, command::Font};
+use super::PrinterProfile;
+use crate::{command::Font, PrinterConnectionData};
 
 /// Printers known to this library
 ///
@@ -8,7 +8,7 @@ pub enum PrinterModel {
     /// ZKTeco mini printer
     ZKTeco,
     /// Epson most used printer
-    TMT20
+    TMT20,
 }
 
 impl PrinterModel {
@@ -16,7 +16,7 @@ impl PrinterModel {
     pub fn vp_id(&self) -> (u16, u16, Option<u8>) {
         match self {
             PrinterModel::ZKTeco => (0x6868, 0x0200, Some(0x02)),
-            PrinterModel::TMT20 => (0x04b8, 0x0e15, Some(0x01))
+            PrinterModel::TMT20 => (0x04b8, 0x0e15, Some(0x01)),
         }
     }
 
@@ -24,30 +24,28 @@ impl PrinterModel {
     pub fn usb_profile(&self) -> PrinterProfile {
         let (vendor_id, product_id, endpoint) = self.vp_id();
         match self {
-            PrinterModel::ZKTeco => {
-                PrinterProfile {
-                    printer_connection_data: PrinterConnectionData::Usb {
-                        vendor_id,
-                        product_id,
-                        endpoint,
-                        timeout: std::time::Duration::from_secs(2)
-                    },
-                    columns_per_font: vec![(Font::FontA, 32), (Font::FontB, 42)].into_iter().collect(),
-                    width: 384
-                }
+            PrinterModel::ZKTeco => PrinterProfile {
+                printer_connection_data: PrinterConnectionData::Usb {
+                    vendor_id,
+                    product_id,
+                    endpoint,
+                    timeout: std::time::Duration::from_secs(2),
+                },
+                columns_per_font: vec![(Font::FontA, 32), (Font::FontB, 42)]
+                    .into_iter()
+                    .collect(),
+                width: 384,
             },
-            PrinterModel::TMT20 => {
-                PrinterProfile {
-                    printer_connection_data: PrinterConnectionData::Usb {
-                        vendor_id,
-                        product_id,
-                        endpoint,
-                        timeout: std::time::Duration::from_secs(2)
-                    },
-                    columns_per_font: vec![(Font::FontA, 48)].into_iter().collect(),
-                    width: 576
-                }
-            }
+            PrinterModel::TMT20 => PrinterProfile {
+                printer_connection_data: PrinterConnectionData::Usb {
+                    vendor_id,
+                    product_id,
+                    endpoint,
+                    timeout: std::time::Duration::from_secs(2),
+                },
+                columns_per_font: vec![(Font::FontA, 48)].into_iter().collect(),
+                width: 576,
+            },
         }
     }
 }

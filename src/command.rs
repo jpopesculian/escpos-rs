@@ -1,8 +1,8 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub use self::charset::Charset;
-pub use self::font::Font;
 pub use self::code_table::CodeTable;
+pub use self::font::Font;
 
 mod charset;
 mod code_table;
@@ -20,15 +20,15 @@ pub enum Command {
     /// Set an international character set, Equivalent to ESC R
     SelectCharset {
         /// Character set to be set
-        charset: Charset
+        charset: Charset,
     },
     /// Selects a different code table, Equivalent to ESC t
     SelectCodeTable {
-        code_table: CodeTable
+        code_table: CodeTable,
     },
     /// Sets up a font. Equivalent to ESC M
     SelectFont {
-        font: Font
+        font: Font,
     },
     UnderlineOff,
     Underline1Dot,
@@ -40,7 +40,7 @@ pub enum Command {
     Bitmap,
     /// Change line size
     NoLine,
-    ResetLine
+    ResetLine,
 }
 
 impl Command {
@@ -50,21 +50,21 @@ impl Command {
             Command::Cut => vec![0x1d, 0x56, 0x41, 0x96],
             Command::Reset => vec![0x1d, 0x40],
             Command::PrintModeDefault => vec![0x01b, 0x21, 0x00],
-            Command::SelectCharset{charset} => {
+            Command::SelectCharset { charset } => {
                 let mut res = vec![0x1b, 0x52];
                 res.append(&mut charset.as_bytes());
                 res
-            },
-            Command::SelectCodeTable{code_table} => {
+            }
+            Command::SelectCodeTable { code_table } => {
                 let mut res = vec![0x1b, 0x74];
                 res.append(&mut code_table.as_bytes());
                 res
-            },
-            Command::SelectFont{font} => {
+            }
+            Command::SelectFont { font } => {
                 let mut res = vec![0x1b, 0x4d];
                 res.append(&mut font.as_bytes());
                 res
-            },
+            }
             Command::UnderlineOff => vec![0x1b, 0x2d, 0x00],
             Command::Underline1Dot => vec![0x1b, 0x2d, 0x01],
             Command::Underline2Dot => vec![0x1b, 0x2d, 0x02],
@@ -72,7 +72,7 @@ impl Command {
             Command::BoldOff => vec![0x1b, 0x45, 0x00],
             Command::Bitmap => vec![0x1b, 0x2a],
             Command::NoLine => vec![0x1b, 0x33, 0x00],
-            Command::ResetLine => vec![0x1b, 0x32]
+            Command::ResetLine => vec![0x1b, 0x32],
         }
     }
 }

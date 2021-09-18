@@ -1,4 +1,4 @@
 #[derive(Clone)]
 enum MarkdownTokens {
-    Bold
+    Bold,
 }

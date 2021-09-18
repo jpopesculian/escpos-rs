@@ -1,23 +1,23 @@
-extern crate serde;
 extern crate codepage_437;
 extern crate image;
 extern crate qrcode;
+extern crate serde;
 
-pub use self::print_data::{PrintData, PrintDataBuilder};
-pub use self::justification::{Justification};
 pub use self::escpos_image::EscposImage;
+pub use self::justification::Justification;
+pub use self::print_data::{PrintData, PrintDataBuilder};
 
-mod print_data;
-mod justification;
 mod escpos_image;
+mod justification;
+mod print_data;
 
-use qrcode::QrCode;
-use codepage_437::{IntoCp437, CP437_CONTROL};
 use crate::{
+    command::{Command, Font},
     Error, PrinterProfile,
-    command::{Command, Font}
 };
-use serde::{Serialize, Deserialize};
+use codepage_437::{IntoCp437, CP437_CONTROL};
+use qrcode::QrCode;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// Templates for recurrent prints
@@ -29,17 +29,11 @@ use std::collections::HashSet;
 #[serde(tag = "kind")]
 pub enum Instruction {
     /// Compound instruction, composed of multiple instructions that must be executed sequentially
-    Compound {
-        instructions: Vec<Instruction>
-    },
+    Compound { instructions: Vec<Instruction> },
     /// An instruction consisting of a single `esc/pos` command
-    Command {
-        command: Command
-    },
+    Command { command: Command },
     /// Short for jumping a specified number of lines
-    VSpace {
-        lines: u8
-    },
+    VSpace { lines: u8 },
     /// Raw text
     Text {
         /// Content to be printed
@@ -51,7 +45,7 @@ pub enum Instruction {
         /// Justification of the content
         justification: Justification,
         /// Maps a string to be replaced, to a description of the string
-        replacements: Option<HashSet<String>>
+        replacements: Option<HashSet<String>>,
     },
     /// 2 column table
     DuoTable {
@@ -60,30 +54,30 @@ pub enum Instruction {
         /// Header to be displayed on the table
         header: (String, String),
         /// Font used for the table
-        font: Font
+        font: Font,
     },
     /// Table with three columns. Might be to tight for 50mm printers
     TrioTable {
         name: String,
-        header: (String, String, String)
+        header: (String, String, String),
     },
     /// Fancy table for really detailed prints
     QuadTable {
         name: String,
-        header: (String, String, String)
+        header: (String, String, String),
     },
     /// Contains a static image, that is, does not change with different printing mechanisms
     Image {
         /// Inner image
-        image: EscposImage
+        image: EscposImage,
     },
     /// Prints a QR Code. This field is dynamic
     QRCode {
         /// Name of the QR code, to be searched in the qr code content list
-        name: String
+        name: String,
     },
     /// Cuts the paper in place. Only for supported printers
-    Cut
+    Cut,
 }
 
 /// Instruction addition
@@ -91,28 +85,32 @@ impl std::ops::Add<Instruction> for Instruction {
     type Output = Instruction;
     fn add(self, rhs: Instruction) -> Self::Output {
         match self {
-            Instruction::Compound{mut instructions} => {
+            Instruction::Compound { mut instructions } => {
                 match rhs {
-                    Instruction::Compound{instructions: mut rhs_instructions} => {
+                    Instruction::Compound {
+                        instructions: mut rhs_instructions,
+                    } => {
                         instructions.append(&mut rhs_instructions);
-                    },
+                    }
                     rhs => {
                         instructions.push(rhs);
                     }
                 }
-                Instruction::Compound{instructions}
-            },
+                Instruction::Compound { instructions }
+            }
             lhs => {
                 let mut instructions = vec![lhs];
                 match rhs {
-                    Instruction::Compound{instructions: mut rhs_instructions} => {
+                    Instruction::Compound {
+                        instructions: mut rhs_instructions,
+                    } => {
                         instructions.append(&mut rhs_instructions);
-                    },
+                    }
                     rhs => {
                         instructions.push(rhs);
                     }
                 }
-                Instruction::Compound{instructions}
+                Instruction::Compound { instructions }
             }
         }
     }
@@ -124,21 +122,23 @@ impl std::ops::AddAssign for Instruction {
         // Now we deal with this thing
         if !self.is_compound() {
             // It was not a compound element, so we make it such
-            *self = Instruction::Compound{instructions: vec![self.clone()]};
+            *self = Instruction::Compound {
+                instructions: vec![self.clone()],
+            };
         }
 
         match self {
-            Instruction::Compound{instructions} => {
-                match other {
-                    Instruction::Compound{instructions: mut other_instructions} => {
-                        instructions.append(&mut other_instructions);
-                    },
-                    other => {
-                        instructions.push(other);
-                    }
+            Instruction::Compound { instructions } => match other {
+                Instruction::Compound {
+                    instructions: mut other_instructions,
+                } => {
+                    instructions.append(&mut other_instructions);
+                }
+                other => {
+                    instructions.push(other);
                 }
             },
-            _ => panic!("Impossible error")
+            _ => panic!("Impossible error"),
         }
     }
 }
@@ -146,24 +146,29 @@ impl std::ops::AddAssign for Instruction {
 impl Instruction {
     /// Returns true if the instruction is compund
     pub fn is_compound(&self) -> bool {
-        matches!(self, Instruction::Compound{..})
+        matches!(self, Instruction::Compound { .. })
     }
 
     /// Returns true if the instruction is text
     pub fn is_text(&self) -> bool {
-        matches!(self, Instruction::Text{..})
+        matches!(self, Instruction::Text { .. })
     }
 
     /// Sends simple text to the printer.
     ///
     /// Straightfoward text printing. The `replacements` set specifies which contents of the string should be replaced in a per-impresion basis.
-    pub fn text<A: Into<String>>(content: A, font: Font, justification: Justification, replacements: Option<HashSet<String>>) -> Instruction {
+    pub fn text<A: Into<String>>(
+        content: A,
+        font: Font,
+        justification: Justification,
+        replacements: Option<HashSet<String>>,
+    ) -> Instruction {
         Instruction::Text {
             content: content.into(),
             markdown: false,
             font,
             justification,
-            replacements
+            replacements,
         }
     }
 
@@ -172,13 +177,18 @@ impl Instruction {
     /// Allows markdown to be sent to the printer. Not everything is supported, so far the following list works (if the printer supports the corresponding fonts)
     ///  * Bold font, with **
     ///  * Italics, with _
-    pub fn markdown(content: String, font: Font, justification: Justification, replacements: Option<HashSet<String>>) -> Instruction {
+    pub fn markdown(
+        content: String,
+        font: Font,
+        justification: Justification,
+        replacements: Option<HashSet<String>>,
+    ) -> Instruction {
         Instruction::Text {
             content,
             markdown: true,
             font,
             justification,
-            replacements
+            replacements,
         }
     }
 
@@ -186,9 +196,7 @@ impl Instruction {
     ///
     /// For a more precise control of position in the image, it is easier to edit the input image beforehand.
     pub fn image(image: EscposImage) -> Result<Instruction, Error> {
-        Ok(Instruction::Image {
-            image
-        })
+        Ok(Instruction::Image { image })
     }
 
     /// Creates a new QR code that does not change through different print steps
@@ -198,50 +206,58 @@ impl Instruction {
         let img = code.render::<image::Rgba<u8>>().build();
 
         let escpos_image = EscposImage::new(
-            image::DynamicImage::ImageRgba8(img),//.write_to(&mut content, image::ImageOutputFormat::Png).unwrap();
+            image::DynamicImage::ImageRgba8(img), //.write_to(&mut content, image::ImageOutputFormat::Png).unwrap();
             128,
-            Justification::Center
+            Justification::Center,
         )?;
-        
+
         Instruction::image(escpos_image)
     }
 
     /// Creates a dynamic qr code instruction, which requires a string at printing time
     pub fn dynamic_qr_code<A: Into<String>>(name: A) -> Instruction {
-        Instruction::QRCode{name: name.into()}
+        Instruction::QRCode { name: name.into() }
     }
 
     /// Executes a raw escpos command.
     pub fn command(command: Command) -> Instruction {
-        Instruction::Command {
-            command
-        }
+        Instruction::Command { command }
     }
 
     /// Creates a table with two columns.
-    pub fn duo_table<A: Into<String>, B: Into<String>, C: Into<String>>(name: A, header: (B, C), font: Font) -> Instruction {
+    pub fn duo_table<A: Into<String>, B: Into<String>, C: Into<String>>(
+        name: A,
+        header: (B, C),
+        font: Font,
+    ) -> Instruction {
         Instruction::DuoTable {
             name: name.into(),
             header: (header.0.into(), header.1.into()),
-            font
+            font,
         }
     }
 
     /// Creates a table with three columns
-    pub fn trio_table<A: Into<String>, B: Into<String>, C: Into<String>, D: Into<String>>(name: A, header: (B, C, D)) -> Instruction {
+    pub fn trio_table<A: Into<String>, B: Into<String>, C: Into<String>, D: Into<String>>(
+        name: A,
+        header: (B, C, D),
+    ) -> Instruction {
         Instruction::TrioTable {
             name: name.into(),
-            header: (header.0.into(), header.1.into(), header.2.into())
+            header: (header.0.into(), header.1.into(), header.2.into()),
         }
     }
 
     /// Creates a table with four columns
     ///
     /// Tables with four columns can be quite tight in 80mm printers, and unthinkable in 58mm ones or smaller. Use with caution!
-    pub fn quad_table<A: Into<String>, B: Into<String>, C: Into<String>, D: Into<String>>(name: A, header: (B, C, D)) -> Instruction {
+    pub fn quad_table<A: Into<String>, B: Into<String>, C: Into<String>, D: Into<String>>(
+        name: A,
+        header: (B, C, D),
+    ) -> Instruction {
         Instruction::QuadTable {
             name: name.into(),
-            header: (header.0.into(), header.1.into(), header.2.into())
+            header: (header.0.into(), header.1.into(), header.2.into()),
         }
     }
 
@@ -252,53 +268,64 @@ impl Instruction {
 
     /// Moves the paper a certain amount of vertical spaces
     pub fn vspace(lines: u8) -> Instruction {
-        Instruction::VSpace{lines}
+        Instruction::VSpace { lines }
     }
 
     /// Main serialization function
     ///
     /// This function turns the instruction structure into the sequence of bytes required to print the information, according to the ESCP/POS protocol. [PrintData](crate::PrintData) might be required if some of the information for printing is dynamic.
-    pub(crate) fn to_vec(&self, printer_profile: &PrinterProfile, print_data: Option<&PrintData>) -> Result<Vec<u8>, Error> {
+    pub(crate) fn to_vec(
+        &self,
+        printer_profile: &PrinterProfile,
+        print_data: Option<&PrintData>,
+    ) -> Result<Vec<u8>, Error> {
         let mut target = Vec::new();
         match self {
-            Instruction::Compound{instructions} => {
+            Instruction::Compound { instructions } => {
                 for instruction in instructions {
                     target.append(&mut instruction.to_vec(printer_profile, print_data)?);
                 }
-            },
+            }
             Instruction::Cut => {
                 target.extend_from_slice(&Command::Cut.as_bytes());
-            },
-            Instruction::Command{command} => {
+            }
+            Instruction::Command { command } => {
                 target.append(&mut command.as_bytes());
             }
-            Instruction::VSpace{lines} => {
-                target.append(&mut vec![b'\n'; *lines as usize])
-            },
-            Instruction::Image{image} => {
+            Instruction::VSpace { lines } => target.append(&mut vec![b'\n'; *lines as usize]),
+            Instruction::Image { image } => {
                 target.extend_from_slice(&image.feed(printer_profile.width));
-            },
-            Instruction::QRCode{name} => {
+            }
+            Instruction::QRCode { name } => {
                 let print_data = print_data.ok_or(Error::NoPrintData)?;
                 if let Some(qr_contents) = &print_data.qr_contents {
                     if let Some(qr_content) = qr_contents.get(name) {
-                        target.extend_from_slice(&Instruction::qr_code(qr_content.clone())?.to_vec(printer_profile, Some(print_data))?)
+                        target.extend_from_slice(
+                            &Instruction::qr_code(qr_content.clone())?
+                                .to_vec(printer_profile, Some(print_data))?,
+                        )
                     } else {
-                        return Err(Error::NoQrContent(name.clone()))
+                        return Err(Error::NoQrContent(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoQrContents)
+                    return Err(Error::NoQrContents);
                 }
-            },
+            }
             // Text serialization for the printer
-            Instruction::Text{content, markdown, font, justification, replacements: self_replacements} => {
+            Instruction::Text {
+                content,
+                markdown,
+                font,
+                justification,
+                replacements: self_replacements,
+            } => {
                 // We setup the font, mainly
-                target.append(&mut Command::SelectFont{font: font.clone()}.as_bytes());
+                target.append(&mut Command::SelectFont { font: font.clone() }.as_bytes());
 
                 // We extract the width for this font
                 let width = match printer_profile.columns_per_font.get(&font) {
                     Some(w) => *w,
-                    None => return Err(Error::NoWidth)
+                    None => return Err(Error::NoWidth),
                 };
 
                 let mut replaced_string = content.clone();
@@ -309,9 +336,10 @@ impl Instruction {
 
                         for key in self_replacements.iter() {
                             if let Some(replacement) = print_data.replacements.get(key) {
-                                replaced_string = replaced_string.as_str().replace(key, replacement);
+                                replaced_string =
+                                    replaced_string.as_str().replace(key, replacement);
                             } else {
-                                return Err(Error::NoReplacementFound(key.clone()))
+                                return Err(Error::NoReplacementFound(key.clone()));
                             }
                         }
                     }
@@ -332,7 +360,7 @@ impl Instruction {
                 let mut line = String::new();
                 let tokens = demarkdown_string.split_whitespace();
                 let mut width_count = 0;
-                
+
                 for token in tokens {
                     if width_count + token.len() + 1 > (width as usize) {
                         // We have to create a new line, this does not fit.
@@ -341,8 +369,10 @@ impl Instruction {
                         let mut tmp = match justification {
                             Justification::Left => format!("{}\n", line),
                             Justification::Right => format!("{:>1$}\n", line, width as usize),
-                            Justification::Center => format!("{:^1$}\n", line, width as usize)
-                        }.into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?;
+                            Justification::Center => format!("{:^1$}\n", line, width as usize),
+                        }
+                        .into_cp437(&CP437_CONTROL)
+                        .map_err(|_| Error::Encoding)?;
                         result.append(&mut tmp);
 
                         // And we start the new line
@@ -362,42 +392,62 @@ impl Instruction {
                     let mut tmp = match justification {
                         Justification::Left => format!("{}\n", line),
                         Justification::Right => format!("{:>1$}\n", line, width as usize),
-                        Justification::Center => format!("{:^1$}\n", line, width as usize)
-                    }.into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?;
+                        Justification::Center => format!("{:^1$}\n", line, width as usize),
+                    }
+                    .into_cp437(&CP437_CONTROL)
+                    .map_err(|_| Error::Encoding)?;
                     result.append(&mut tmp);
                 }
-                
+
                 target.append(&mut result);
-            },
-            Instruction::DuoTable{name, header, font} => {
+            }
+            Instruction::DuoTable { name, header, font } => {
                 // We extract the width for this font
                 let width = match printer_profile.columns_per_font.get(&font) {
                     Some(w) => *w,
-                    None => return Err(Error::NoWidth)
+                    None => return Err(Error::NoWidth),
                 };
                 //First, the headers
-                target.extend_from_slice(&format!("{}{:>2$}\n", header.0, header.1, (width as usize) - header.0.len()).into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
+                target.extend_from_slice(
+                    &format!(
+                        "{}{:>2$}\n",
+                        header.0,
+                        header.1,
+                        (width as usize) - header.0.len()
+                    )
+                    .into_cp437(&CP437_CONTROL)
+                    .map_err(|_| Error::Encoding)?,
+                );
 
                 // Now, the line too
                 target.append(&mut vec![b'-'; width as usize]);
                 target.push(b'\n');
-                
+
                 // Now we actually look up the table
                 let print_data = print_data.ok_or(Error::NoPrintData)?;
 
                 if let Some(tables) = &print_data.duo_tables {
                     if let Some(table) = tables.get(name) {
                         for row in table {
-                            target.extend_from_slice(&format!("{}{:>2$}\n", row.0, row.1, (width as usize) - row.0.len()).into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?)
+                            target.extend_from_slice(
+                                &format!(
+                                    "{}{:>2$}\n",
+                                    row.0,
+                                    row.1,
+                                    (width as usize) - row.0.len()
+                                )
+                                .into_cp437(&CP437_CONTROL)
+                                .map_err(|_| Error::Encoding)?,
+                            )
                         }
                     } else {
-                        return Err(Error::NoTableFound(name.clone()))
+                        return Err(Error::NoTableFound(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoTables)
+                    return Err(Error::NoTables);
                 }
-            },
-            Instruction::TrioTable{name, header} => {
+            }
+            Instruction::TrioTable { name, header } => {
                 // First, we will determine the proper alignment for the middle component
                 let print_data = print_data.ok_or(Error::NoPrintData)?;
 
@@ -419,22 +469,24 @@ impl Instruction {
                             }
                         }
                     } else {
-                        return Err(Error::NoTableFound(name.clone()))
+                        return Err(Error::NoTableFound(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoTables)
+                    return Err(Error::NoTables);
                 }
 
                 // We chose a font
                 let width = match printer_profile.columns_per_font.get(&Font::FontA) {
                     Some(w) => *w,
-                    None => return Err(Error::NoWidth)
+                    None => return Err(Error::NoWidth),
                 } as usize;
 
                 let (max_left, max_right) = if max_left + max_middle + max_right + 2 <= width {
                     // Todo va excelentemente bien.
                     (max_left, max_right)
-                } else if max_middle + max_right + 2 <= width  && width - max_middle - max_right - 2 > 2 {
+                } else if max_middle + max_right + 2 <= width
+                    && width - max_middle - max_right - 2 > 2
+                {
                     // I am sorry, Mr. left side.
                     (width - max_middle - max_right - 2, max_right)
                 } else {
@@ -452,28 +504,32 @@ impl Instruction {
                 // We go with the headers
                 target.extend_from_slice(
                     &trio_row(header.clone(), width, max_left, max_right)
-                .into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
+                        .into_cp437(&CP437_CONTROL)
+                        .map_err(|_| Error::Encoding)?,
+                );
 
                 // Now, the line too
                 target.append(&mut vec![b'-'; width]);
                 target.push(b'\n');
-                
+
                 // Now we actually look up the table
                 if let Some(tables) = &print_data.trio_tables {
                     if let Some(table) = tables.get(name) {
                         for row in table {
                             target.extend_from_slice(
                                 &trio_row(row.clone(), width, max_left, max_right)
-                            .into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
+                                    .into_cp437(&CP437_CONTROL)
+                                    .map_err(|_| Error::Encoding)?,
+                            );
                         }
                     } else {
-                        return Err(Error::NoTableFound(name.clone()))
+                        return Err(Error::NoTableFound(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoTables)
+                    return Err(Error::NoTables);
                 }
-            },
-            Instruction::QuadTable{name, header} => {
+            }
+            Instruction::QuadTable { name, header } => {
                 // First, we will determine the proper alignment for the middle component
                 let print_data = print_data.ok_or(Error::NoPrintData)?;
 
@@ -494,22 +550,24 @@ impl Instruction {
                             }
                         }
                     } else {
-                        return Err(Error::NoTableFound(name.clone()))
+                        return Err(Error::NoTableFound(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoTables)
+                    return Err(Error::NoTables);
                 }
 
                 // We chose a font
                 let width = match printer_profile.columns_per_font.get(&Font::FontA) {
                     Some(w) => *w,
-                    None => return Err(Error::NoWidth)
+                    None => return Err(Error::NoWidth),
                 } as usize;
 
                 let (max_left, max_right) = if max_left + max_middle + max_right + 2 <= width {
                     // Todo va excelentemente bien.
                     (max_left, max_right)
-                } else if max_middle + max_right + 2 <= width  && width - max_middle - max_right - 2 > 2 {
+                } else if max_middle + max_right + 2 <= width
+                    && width - max_middle - max_right - 2 > 2
+                {
                     // I am sorry, Mr. left side.
                     (width - max_middle - max_right - 2, max_right)
                 } else {
@@ -527,31 +585,53 @@ impl Instruction {
 
                 // We go with the headers
                 target.extend_from_slice(
-                    &trio_row((header.0.clone(), header.1.clone(), header.2.clone()), width, max_left, max_right)
-                .into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
+                    &trio_row(
+                        (header.0.clone(), header.1.clone(), header.2.clone()),
+                        width,
+                        max_left,
+                        max_right,
+                    )
+                    .into_cp437(&CP437_CONTROL)
+                    .map_err(|_| Error::Encoding)?,
+                );
 
                 // Now, the line too
                 target.append(&mut vec![b'-'; width]);
                 target.push(b'\n');
-                
+
                 // Now we actually look up the table
                 if let Some(tables) = &print_data.quad_tables {
                     if let Some(table) = tables.get(name) {
                         for row in table {
                             // First row
-                            target.extend_from_slice(&Command::SelectFont{font: Font::FontB}.as_bytes());
-                            target.extend_from_slice(&format!("{}\n", row.0).into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
-                            target.extend_from_slice(&Command::SelectFont{font: Font::FontA}.as_bytes());
+                            target.extend_from_slice(
+                                &Command::SelectFont { font: Font::FontB }.as_bytes(),
+                            );
+                            target.extend_from_slice(
+                                &format!("{}\n", row.0)
+                                    .into_cp437(&CP437_CONTROL)
+                                    .map_err(|_| Error::Encoding)?,
+                            );
+                            target.extend_from_slice(
+                                &Command::SelectFont { font: Font::FontA }.as_bytes(),
+                            );
                             // Now the three columns
                             target.extend_from_slice(
-                                &trio_row((row.1.clone(), row.2.clone(), row.3.clone()), width, max_left, max_right)
-                            .into_cp437(&CP437_CONTROL).map_err(|_| Error::Encoding)?);
+                                &trio_row(
+                                    (row.1.clone(), row.2.clone(), row.3.clone()),
+                                    width,
+                                    max_left,
+                                    max_right,
+                                )
+                                .into_cp437(&CP437_CONTROL)
+                                .map_err(|_| Error::Encoding)?,
+                            );
                         }
                     } else {
-                        return Err(Error::NoTableFound(name.clone()))
+                        return Err(Error::NoTableFound(name.clone()));
                     }
                 } else {
-                    return Err(Error::NoTables)
+                    return Err(Error::NoTables);
                 }
             }
         }
@@ -560,22 +640,33 @@ impl Instruction {
 }
 
 // Auxiliar function to obtain three-row formatted string
-fn trio_row(mut row: (String, String, String), width: usize, max_left: usize, max_right: usize) -> String {
+fn trio_row(
+    mut row: (String, String, String),
+    width: usize,
+    max_left: usize,
+    max_right: usize,
+) -> String {
     if row.0.len() > max_left {
-        row.0.replace_range((max_left-2).., "..");
+        row.0.replace_range((max_left - 2).., "..");
     }
     if row.1.len() > width - max_left - max_right - 2 {
-        row.1.replace_range((width - max_left - max_right - 2).., "..");
+        row.1
+            .replace_range((width - max_left - max_right - 2).., "..");
     }
     if row.2.len() > max_left {
-        row.2.replace_range((max_right-2).., "..");
+        row.2.replace_range((max_right - 2).., "..");
     }
     row.0.truncate(max_left);
     row.2.truncate(max_right);
     row.1.truncate(width - max_left - max_right - 2);
 
-    format!("{:<3$}{:^4$}{:>5$}\n",
-        row.0, row.1, row.2, // Words
-        max_left, width - max_left - max_right, max_right // Lengths
+    format!(
+        "{:<3$}{:^4$}{:>5$}\n",
+        row.0,
+        row.1,
+        row.2, // Words
+        max_left,
+        width - max_left - max_right,
+        max_right // Lengths
     )
 }

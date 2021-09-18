@@ -1,6 +1,6 @@
 extern crate serde;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Common fonts used in thermal printers
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq)]
@@ -9,10 +9,10 @@ pub enum Font {
     FontB,
     FontC,
     FontD,
-    FontE
+    FontE,
 }
 
-impl Eq for Font{}
+impl Eq for Font {}
 
 impl Font {
     /// Byte representation of each font.
@@ -22,7 +22,7 @@ impl Font {
             Font::FontB => vec![0x01],
             Font::FontC => vec![0x02],
             Font::FontD => vec![0x03],
-            Font::FontE => vec![0x04]
+            Font::FontE => vec![0x04],
         }
     }
 }

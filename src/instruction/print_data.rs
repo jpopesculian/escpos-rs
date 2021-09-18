@@ -8,7 +8,7 @@ pub struct PrintData {
     pub(crate) duo_tables: Option<HashMap<String, Vec<(String, String)>>>,
     pub(crate) trio_tables: Option<HashMap<String, Vec<(String, String, String)>>>,
     pub(crate) quad_tables: Option<HashMap<String, Vec<(String, String, String, String)>>>,
-    pub(crate) qr_contents: Option<HashMap<String, String>>
+    pub(crate) qr_contents: Option<HashMap<String, String>>,
 }
 
 impl PrintData {
@@ -24,7 +24,7 @@ pub struct PrintDataBuilder {
     duo_tables: Option<HashMap<String, Vec<(String, String)>>>,
     trio_tables: Option<HashMap<String, Vec<(String, String, String)>>>,
     quad_tables: Option<HashMap<String, Vec<(String, String, String, String)>>>,
-    qr_contents: Option<HashMap<String, String>>
+    qr_contents: Option<HashMap<String, String>>,
 }
 
 impl Default for PrintDataBuilder {
@@ -34,7 +34,7 @@ impl Default for PrintDataBuilder {
             duo_tables: None,
             trio_tables: None,
             quad_tables: None,
-            qr_contents: None
+            qr_contents: None,
         }
     }
 }
@@ -58,7 +58,11 @@ impl PrintDataBuilder {
     /// ```
     ///
     /// Note that there is no particular syntax for the `target` string. `"%name%"` is used in the example so that the word "name" (in case it appears in the text) is safe from this instruction.
-    pub fn replacement<A: Into<String>, B: Into<String>>(mut self, target: A, replacement: B) -> Self {
+    pub fn replacement<A: Into<String>, B: Into<String>>(
+        mut self,
+        target: A,
+        replacement: B,
+    ) -> Self {
         self.replacements.insert(target.into(), replacement.into());
         self
     }
@@ -72,7 +76,11 @@ impl PrintDataBuilder {
         self
     }
 
-    pub fn add_trio_table<A: Into<String>>(mut self, name: A, rows: Vec<(String, String, String)>) -> Self {
+    pub fn add_trio_table<A: Into<String>>(
+        mut self,
+        name: A,
+        rows: Vec<(String, String, String)>,
+    ) -> Self {
         if let Some(trio_tables) = &mut self.trio_tables {
             trio_tables.insert(name.into(), rows);
         } else {
@@ -81,7 +89,11 @@ impl PrintDataBuilder {
         self
     }
 
-    pub fn add_quad_table<A: Into<String>>(mut self, name: A, rows: Vec<(String, String, String, String)>) -> Self {
+    pub fn add_quad_table<A: Into<String>>(
+        mut self,
+        name: A,
+        rows: Vec<(String, String, String, String)>,
+    ) -> Self {
         if let Some(quad_tables) = &mut self.quad_tables {
             quad_tables.insert(name.into(), rows);
         } else {
@@ -105,7 +117,7 @@ impl PrintDataBuilder {
             duo_tables: self.duo_tables,
             trio_tables: self.trio_tables,
             quad_tables: self.quad_tables,
-            qr_contents: self.qr_contents
+            qr_contents: self.qr_contents,
         }
     }
 }

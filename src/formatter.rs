@@ -4,7 +4,7 @@ pub struct TableOptions {
     /// Indicates the header/row division character
     pub header_division_pattern: Option<String>,
     /// Inicates if a pattern should be used to bridge between columns
-    pub join_columns_pattern: Option<String>
+    pub join_columns_pattern: Option<String>,
 }
 
 /// Helper structure to format text
@@ -14,18 +14,18 @@ pub struct Formatter {
     /// Inner table options
     table_options: TableOptions,
     /// Width to use for formatting
-    width: u8
+    width: u8,
 }
 
 impl Formatter {
     /// Creates a new formatter with a default width
     pub fn new(width: u8) -> Formatter {
-        Formatter{
+        Formatter {
             table_options: TableOptions {
                 header_division_pattern: Some("-".into()),
-                join_columns_pattern: None
+                join_columns_pattern: None,
             },
-            width
+            width,
         }
     }
 
@@ -78,47 +78,54 @@ impl Formatter {
     ///
     /// ```rust
     /// use escpos_rs::Formatter;
-    /// 
+    ///
     /// let formatter = Formatter::new(16);
     /// let res = formatter.space_split("Sentence with two lines.");
     /// assert_eq!("Sentence with\ntwo lines.", res.as_str());
     /// ```
     pub fn space_split<A: AsRef<str>>(&self, source: A) -> String {
-        let mut result = source.as_ref().split("\n").map(|line| {
-            // Now, for each line, we split it into words.
-            let mut current_line = String::new();
-            let mut broken_lines = Vec::new();
-            for word in line.split_whitespace() {
-                let num_chars = word.chars().count();
-                // The one being added marks the space
-                if current_line.len() + num_chars + 1 < self.width.into() {
-                    // Easy to add to the current line, the conditional if is for the first word of them all.
-                    current_line += &format!("{}{}", if current_line.len() == 0 {""} else {" "}, word);
-                } else {
-                    // We have to terminate the current line, in case it contains something
-                    if !current_line.is_empty() {
-                        broken_lines.push(current_line.clone());
-                    }
-                    if num_chars < self.width.into() {
-                        // We start the next line with the current word
-                        current_line = word.to_string();
+        let mut result = source
+            .as_ref()
+            .split("\n")
+            .map(|line| {
+                // Now, for each line, we split it into words.
+                let mut current_line = String::new();
+                let mut broken_lines = Vec::new();
+                for word in line.split_whitespace() {
+                    let num_chars = word.chars().count();
+                    // The one being added marks the space
+                    if current_line.len() + num_chars + 1 < self.width.into() {
+                        // Easy to add to the current line, the conditional if is for the first word of them all.
+                        current_line +=
+                            &format!("{}{}", if current_line.len() == 0 { "" } else { " " }, word);
                     } else {
-                        // We use a char iterator to split this into lines
-                        let mut chars = word.chars();
-                        let mut word_fragment: String = chars.by_ref().take(self.width.into()).collect();
-                        broken_lines.push(format!("{}",word_fragment));
-                        while !word_fragment.is_empty() {
-                            word_fragment = chars.by_ref().take(self.width.into()).collect();
-                            broken_lines.push(format!("{}",word_fragment));
+                        // We have to terminate the current line, in case it contains something
+                        if !current_line.is_empty() {
+                            broken_lines.push(current_line.clone());
+                        }
+                        if num_chars < self.width.into() {
+                            // We start the next line with the current word
+                            current_line = word.to_string();
+                        } else {
+                            // We use a char iterator to split this into lines
+                            let mut chars = word.chars();
+                            let mut word_fragment: String =
+                                chars.by_ref().take(self.width.into()).collect();
+                            broken_lines.push(format!("{}", word_fragment));
+                            while !word_fragment.is_empty() {
+                                word_fragment = chars.by_ref().take(self.width.into()).collect();
+                                broken_lines.push(format!("{}", word_fragment));
+                            }
                         }
                     }
                 }
-            }
-            if !current_line.is_empty() {
-                broken_lines.push(current_line);
-            }
-            broken_lines.join("\n")
-        }).collect::<Vec<_>>().join("");
+                if !current_line.is_empty() {
+                    broken_lines.push(current_line);
+                }
+                broken_lines.join("\n")
+            })
+            .collect::<Vec<_>>()
+            .join("");
         // If the last character is a new line, we need to add it back in
         if let Some(last_char) = source.as_ref().chars().last() {
             if last_char == '\n' {
@@ -148,12 +155,26 @@ impl Formatter {
     /// Milk            5.00
     /// Cereal         10.00
     /// "#.trim_start();
-    /// 
+    ///
     /// assert_eq!(target, formatter.duo_table(header, rows));
     /// ```
-    pub fn duo_table<A: Into<String>, B: Into<String>, C: IntoIterator<Item = (D, E)>, D: Into<String>, E: Into<String>>(&self, header: (A, B), rows: C) -> String {
+    pub fn duo_table<
+        A: Into<String>,
+        B: Into<String>,
+        C: IntoIterator<Item = (D, E)>,
+        D: Into<String>,
+        E: Into<String>,
+    >(
+        &self,
+        header: (A, B),
+        rows: C,
+    ) -> String {
         // Aux closure to create each row.
-        let aux_duo_table = |mut first: String, mut second: String, width: u8, replace_last: Option<char>| -> String {
+        let aux_duo_table = |mut first: String,
+                             mut second: String,
+                             width: u8,
+                             replace_last: Option<char>|
+         -> String {
             let row_width = first.len() + second.len();
             let (column_1, column_2) = if row_width < width as usize {
                 (first, second)
@@ -183,7 +204,8 @@ impl Formatter {
                 (first, second)
             };
 
-            format!("{} {:>2$}\n",
+            format!(
+                "{} {:>2$}\n",
                 column_1,
                 column_2,
                 (width as usize) - (column_1.len() + 1)
@@ -223,12 +245,30 @@ impl Formatter {
     /// Milk     5.00      3
     /// Cereal   10.00     1
     /// "#.trim_start();
-    /// 
+    ///
     /// assert_eq!(target, formatter.trio_table(header, rows));
     /// ```
-    pub fn trio_table<A: Into<String>, B: Into<String>, C: Into<String>, D: IntoIterator<Item = (E, F, G)>, E: Into<String>, F: Into<String>, G: Into<String>>(&self, header: (A, B, C), rows: D) -> String {
+    pub fn trio_table<
+        A: Into<String>,
+        B: Into<String>,
+        C: Into<String>,
+        D: IntoIterator<Item = (E, F, G)>,
+        E: Into<String>,
+        F: Into<String>,
+        G: Into<String>,
+    >(
+        &self,
+        header: (A, B, C),
+        rows: D,
+    ) -> String {
         // Auxiliary closure for printing
-        let aux_trio_table = |mut first: String, mut second: String, mut third: String, width: u8, limits: (u8, u8), replace_last: Option<char>| -> String {
+        let aux_trio_table = |mut first: String,
+                              mut second: String,
+                              mut third: String,
+                              width: u8,
+                              limits: (u8, u8),
+                              replace_last: Option<char>|
+         -> String {
             if first.len() > limits.0 as usize {
                 let max_width = (limits.0 as usize) - 1;
                 if let Some(replacement) = replace_last {
@@ -256,7 +296,8 @@ impl Formatter {
                     third.truncate(max_width);
                 }
             }
-            format!("{:<3$} {:^4$} {:>5$}\n",
+            format!(
+                "{:<3$} {:^4$} {:>5$}\n",
                 first,
                 second,
                 third,
@@ -273,8 +314,11 @@ impl Formatter {
         let mut max_right = header.2.len();
 
         // I was not able to do 2 for loops with the IntoIterator trait with borrowed items :(
-        let rows: Vec<(String, String, String)> = rows.into_iter().map(|(a, b, c)| (a.into(), b.into(), c.into())).collect();
-        
+        let rows: Vec<(String, String, String)> = rows
+            .into_iter()
+            .map(|(a, b, c)| (a.into(), b.into(), c.into()))
+            .collect();
+
         // Now we compare to all rows
         for row in &rows {
             if row.0.len() > max_left {
@@ -290,7 +334,10 @@ impl Formatter {
 
         let limits = if max_left + max_middle + max_right + 2 < self.width as usize {
             // Nothing to do, easy peasy
-            ((max_left + 1) as u8, (self.width as usize - max_right - 1) as u8)
+            (
+                (max_left + 1) as u8,
+                (self.width as usize - max_right - 1) as u8,
+            )
         } else {
             let mut limits = (0u8, self.width as u8);
             // The left-most column must be at least 4 characters wide, with the lowest priority
@@ -325,7 +372,8 @@ impl Formatter {
 
     fn print_header_division_pattern(&self) -> Option<String> {
         if let Some(header_division_pattern) = &self.table_options.header_division_pattern {
-            let mut line = header_division_pattern.repeat((self.width as usize) / header_division_pattern.len() + 1);
+            let mut line = header_division_pattern
+                .repeat((self.width as usize) / header_division_pattern.len() + 1);
             line.truncate(self.width as usize);
             Some(line + "\n")
         } else {

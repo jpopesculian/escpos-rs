@@ -21,7 +21,7 @@
 //!     Err(e) => println!("Error: {}", e)
 //! }
 //! ```
-//! 
+//!
 //! See the [Printer](crate::Printer) structure to see the rest of the implemented functions for interacting with the thermal printer (raw printing, images, etc.).
 //!
 //! ## Printer Profile
@@ -41,7 +41,7 @@
 //!     Printer, PrintData, PrinterProfile,
 //!     Instruction, Justification, command::Font
 //! };
-//! 
+//!
 //! // Printer details...
 //! let printer_profile = PrinterProfile::usb_builder(0x0001, 0x0001)
 //!     .with_font_width(Font::FontA, 32)
@@ -85,15 +85,17 @@
 //!
 //! This structure implements both Serialize, and Deserialize from [serde](https://docs.rs/serde), so it is possible to store these instructions to recover them from memory. You can serialize to a json, as pictures are encoded to base64 first to be utf-8 compatible.
 
-pub use printer::{Printer, PrinterProfile, PrinterProfileBuilder, PrinterModel, PrinterConnectionData};
-pub use instruction::{Instruction, Justification, PrintData, PrintDataBuilder, EscposImage};
-pub use error::{Error};
+pub use error::Error;
 pub use formatter::{Formatter, TableOptions};
+pub use instruction::{EscposImage, Instruction, Justification, PrintData, PrintDataBuilder};
+pub use printer::{
+    Printer, PrinterConnectionData, PrinterModel, PrinterProfile, PrinterProfileBuilder,
+};
 
 /// Contains raw esc/pos commands
 pub mod command;
 
-mod printer;
-mod instruction;
 mod error;
 mod formatter;
+mod instruction;
+mod printer;

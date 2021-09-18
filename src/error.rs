@@ -26,7 +26,8 @@ pub enum Error {
     NoWidth,
     NoQrContent(String),
     NoQrContents,
-    Encoding
+    Encoding,
+    IoError(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -36,22 +37,34 @@ impl std::fmt::Display for Error {
             Error::CP437Error(detail) => format!("CP437 error: {}", detail),
             Error::ImageError(e) => format!("Image error: {}", e),
             Error::NoBulkEndpoint => "No bulk endpoint could be found".to_string(),
-            Error::NoReplacementFound(replacement) => format!("Could not find replacement for tag {{{}}}", replacement),
+            Error::NoReplacementFound(replacement) => {
+                format!("Could not find replacement for tag {{{}}}", replacement)
+            }
             Error::NoPrintData => "Print data must be supplied for this instruction".to_string(),
-            Error::UnsupportedFont => "The specified font does not seem to be supported by the printer profile".to_string(),
+            Error::UnsupportedFont => {
+                "The specified font does not seem to be supported by the printer profile"
+                    .to_string()
+            }
             Error::NoFontFound => "No Font was found in the profile".to_string(),
-            Error::UnsupportedForPrinterConnection => "The called method does not work with the current printer connection".to_string(),
+            Error::UnsupportedForPrinterConnection => {
+                "The called method does not work with the current printer connection".to_string()
+            }
             Error::PrinterError(detail) => format!("An error occured while printing, {}", detail),
             Error::WrongMarkdown => "Incorrect markdown structure".to_string(),
-            Error::NoTables => "Not a single table was found in the PrintData structure".to_string(),
+            Error::NoTables => {
+                "Not a single table was found in the PrintData structure".to_string()
+            }
             Error::NoTableFound(table) => format!("No table was found for id {{{}}}", table),
             Error::NoWidth => "No width was found for the selected font".to_string(),
             Error::NoQrContent(name) => format!("Could not find qr code content for \"{}\"", name),
             Error::NoQrContents => "Could not find qr contents".to_string(),
-            Error::Encoding => "An unsupported utf-8 character was found when passing to cp437".to_string()
+            Error::Encoding => {
+                "An unsupported utf-8 character was found when passing to cp437".to_string()
+            }
+            Error::IoError(err) => format!("I/O Error: {}", err),
         };
         write!(formatter, "{}", content)
     }
 }
 
-impl std::error::Error for Error{}
+impl std::error::Error for Error {}
